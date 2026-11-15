@@ -88,3 +88,13 @@ tfoot td{font-weight:800;border-top:2px solid var(--ink)}
 .g-head{display:grid;gap:14px}
 .acct{display:flex;flex-wrap:wrap;gap:10px;align-items:end}
 .acct label{flex:1 1 180px}
+
+/* pantalla de bienvenida / login */
+.gate{min-height:calc(100dvh - 48px);display:grid;place-items:center;padding:12px 0}
+.gate-box{width:100%;max-width:440px;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:28px 24px;box-shadow:0 12px 36px rgba(18,32,46,.08)}
+[data-theme=dark] .gate-box{box-shadow:0 12px 36px rgba(0,0,0,.35)}
+.gate-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.gate-logo{height:44px;width:auto;display:block}
+.gate-box h1{margin:0 0 6px;font-size:28px}
+.gate-box button[type=submit]{margin-top:4px;padding:13px 16px;font-size:16px}
+.gate-loading{padding:14px;border-radius:10px;background:var(--bg);border:1px solid var(--line);text-align:center}

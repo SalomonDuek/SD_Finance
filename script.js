@@ -1,7 +1,6 @@
-const KEY = 'finanzas.v1';
 let S = { mov: [] };
-try { const raw = localStorage.getItem(KEY); if (raw) S = JSON.parse(raw); } catch (e) {}
-const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} };
+try { localStorage.removeItem('finanzas.v1'); } catch (e) {}
+const save = () => {};
 const $ = id => document.getElementById(id);
 const money = (n, c) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: c, minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(n || 0);
 const ACC = { efec: 'Efectivo ARS', banco: 'Banco / virtual ARS' };
@@ -20,7 +19,7 @@ const root = document.documentElement;
 const reduce = matchMedia('(prefers-reduced-motion:reduce)');
 function paintTheme(t) {
   root.dataset.theme = t;
-  $('theme').setAttribute('aria-checked', t === 'dark');
+  ['theme', 'theme-gate'].forEach(id => { if ($(id)) $(id).setAttribute('aria-checked', t === 'dark'); });
   $('tc').content = t === 'dark' ? '#0f1820' : '#eef2f5';
 }
 function setTheme(t, x, y) {
@@ -37,10 +36,12 @@ function setTheme(t, x, y) {
     root.classList.add('fade'); paintTheme(t); setTimeout(() => root.classList.remove('fade'), 500);
   }
 }
-$('theme').onclick = e => {
+const onThemeClick = e => {
   const b = e.currentTarget.getBoundingClientRect();
   setTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', b.left + b.width / 2, b.top + b.height / 2);
 };
+$('theme').onclick = onThemeClick;
+if ($('theme-gate')) $('theme-gate').onclick = onThemeClick;
 matchMedia('(prefers-color-scheme:dark)').onchange = e => { try { if (!localStorage.getItem('finanzas.theme')) paintTheme(e.matches ? 'dark' : 'light'); } catch (x) {} };
 paintTheme(root.dataset.theme);
 
@@ -98,15 +99,17 @@ $('f').onsubmit = e => {
   if (tipo === 'gasto') { m.cat = g('cat'); m.note = g('note'); }
   if (!(m.ars > 0) || ((tipo === 'compra' || tipo === 'venta') && !(m.usd > 0))) { alert('Ingresá un monto mayor a 0.'); return; }
   if (tipo === 'mover' && m.from === m.to) { alert('Elegí cuentas distintas.'); return; }
+  let newCat = false;
   if (m.cat === '__new') {
     const n = g('newcat').trim();
     if (!n) { alert('Escribí el nombre de la categoría.'); return; }
     const l = S.cats || (S.cats = [...CATS]), ex = l.find(c => c.toLowerCase() === n.toLowerCase());
-    if (ex) m.cat = ex; else { l.push(n); m.cat = n; }
+    if (ex) m.cat = ex; else { l.push(n); m.cat = n; newCat = true; }
   }
   if (editId) S.mov = S.mov.map(x => x.id === editId ? m : x); else S.mov.push(m);
   editId = null; $('mes').value = m.ts.slice(0, 7);
-  save(); renderForm(); render(); queueSync();
+  renderForm(); render();
+  if (typeof saveMovement === 'function') saveMovement(m, newCat);
 };
 
 /* ---- cálculos y pantalla ---- */
@@ -185,15 +188,31 @@ $('anual').onclick = e => {
 };
 $('lista').onclick = e => {
   const b = e.target.closest('button'); if (!b) return;
-  if (b.dataset.del && confirm('¿Borrar este movimiento?')) { if (editId === b.dataset.del) editId = null; S.mov = S.mov.filter(m => m.id !== b.dataset.del); S.del = (S.del || []).concat(b.dataset.del); save(); renderForm(); render(); queueSync(); }
+  if (b.dataset.del && confirm('¿Borrar este movimiento?')) {
+    const id = b.dataset.del;
+    if (editId === id) editId = null;
+    S.mov = S.mov.filter(m => m.id !== id);
+    renderForm(); render();
+    if (typeof deleteMovement === 'function') deleteMovement(id);
+  }
   if (b.dataset.edit) { const m = S.mov.find(x => x.id === b.dataset.edit); if (!m) return; editId = m.id; tipo = m.type; renderForm(m); $('f').scrollIntoView({ behavior: reduce.matches ? 'auto' : 'smooth', block: 'center' }); }
 };
 
 $('exp').onclick = () => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify({ mov: S.mov.map(({ sync, ...m }) => m), cats: S.cats })], { type: 'application/json' })); a.download = 'finanzas-' + nowLocal().slice(0, 10) + '.json'; a.click(); };
 $('impb').onclick = () => $('imp').click();
 $('imp').onchange = async e => {
-  try { const d = JSON.parse(await e.target.files[0].text()); if (!Array.isArray(d.mov)) throw 0; if (confirm('Esto reemplaza tus datos actuales. ¿Seguir?')) { const old = S.mov.map(m => m.id); S = { mov: d.mov.map(({ sync, ...m }) => m), cats: d.cats }; if (!S.cats) delete S.cats; S.del = old.filter(id => !S.mov.some(m => m.id === id)); editId = null; save(); renderForm(); render(); queueSync(); } } catch (x) { alert('El archivo no es válido.'); }
+  try {
+    const d = JSON.parse(await e.target.files[0].text());
+    if (!Array.isArray(d.mov)) throw 0;
+    if (confirm('Esto reemplaza tus datos actuales en Supabase. ¿Seguir?')) {
+      const old = S.mov.map(m => m.id);
+      S = { mov: d.mov.map(({ sync, ...m }) => m), cats: d.cats };
+      if (!S.cats) delete S.cats;
+      const delIds = old.filter(id => !S.mov.some(m => m.id === id));
+      editId = null; renderForm(); render();
+      if (typeof replaceAllCloud === 'function') replaceAllCloud(delIds);
+    }
+  } catch (x) { alert('El archivo no es válido.'); }
 };
 
 $('mes').value = nowLocal().slice(0, 7);
-renderForm(); render();
