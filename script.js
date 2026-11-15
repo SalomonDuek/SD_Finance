@@ -106,7 +106,7 @@ $('f').onsubmit = e => {
   }
   if (editId) S.mov = S.mov.map(x => x.id === editId ? m : x); else S.mov.push(m);
   editId = null; $('mes').value = m.ts.slice(0, 7);
-  save(); renderForm(); render();
+  save(); renderForm(); render(); queueSync();
 };
 
 /* ---- cálculos y pantalla ---- */
@@ -185,14 +185,14 @@ $('anual').onclick = e => {
 };
 $('lista').onclick = e => {
   const b = e.target.closest('button'); if (!b) return;
-  if (b.dataset.del && confirm('¿Borrar este movimiento?')) { if (editId === b.dataset.del) editId = null; S.mov = S.mov.filter(m => m.id !== b.dataset.del); save(); renderForm(); render(); }
+  if (b.dataset.del && confirm('¿Borrar este movimiento?')) { if (editId === b.dataset.del) editId = null; S.mov = S.mov.filter(m => m.id !== b.dataset.del); S.del = (S.del || []).concat(b.dataset.del); save(); renderForm(); render(); queueSync(); }
   if (b.dataset.edit) { const m = S.mov.find(x => x.id === b.dataset.edit); if (!m) return; editId = m.id; tipo = m.type; renderForm(m); $('f').scrollIntoView({ behavior: reduce.matches ? 'auto' : 'smooth', block: 'center' }); }
 };
 
-$('exp').onclick = () => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(S)], { type: 'application/json' })); a.download = 'finanzas-' + nowLocal().slice(0, 10) + '.json'; a.click(); };
+$('exp').onclick = () => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify({ mov: S.mov.map(({ sync, ...m }) => m), cats: S.cats })], { type: 'application/json' })); a.download = 'finanzas-' + nowLocal().slice(0, 10) + '.json'; a.click(); };
 $('impb').onclick = () => $('imp').click();
 $('imp').onchange = async e => {
-  try { const d = JSON.parse(await e.target.files[0].text()); if (!Array.isArray(d.mov)) throw 0; if (confirm('Esto reemplaza tus datos actuales. ¿Seguir?')) { S = d; save(); render(); } } catch (x) { alert('El archivo no es válido.'); }
+  try { const d = JSON.parse(await e.target.files[0].text()); if (!Array.isArray(d.mov)) throw 0; if (confirm('Esto reemplaza tus datos actuales. ¿Seguir?')) { const old = S.mov.map(m => m.id); S = { mov: d.mov.map(({ sync, ...m }) => m), cats: d.cats }; if (!S.cats) delete S.cats; S.del = old.filter(id => !S.mov.some(m => m.id === id)); editId = null; save(); renderForm(); render(); queueSync(); } } catch (x) { alert('El archivo no es válido.'); }
 };
 
 $('mes').value = nowLocal().slice(0, 7);

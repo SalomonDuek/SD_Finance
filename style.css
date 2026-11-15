@@ -85,3 +85,6 @@ tfoot td{font-weight:800;border-top:2px solid var(--ink)}
   .big{font-size:26px}
 }
 @media(prefers-reduced-motion:reduce){.tg .thumb{transition:none}.fade,.fade *{transition:none}}
+.g-head{display:grid;gap:14px}
+.acct{display:flex;flex-wrap:wrap;gap:10px;align-items:end}
+.acct label{flex:1 1 180px}
